@@ -285,15 +285,13 @@ function New-TervisWarrantyFormDashboard {
             )
             $WarrantyRequestLine = $PSBoundParameters | New-WarrantyRequestLine
             $WarrantyChildTicket = $WarrantyRequestLine | New-WarrantyChildTicket -WarrantyRequest $CachedData.WarrantyRequest -WarrantyParentTicket $CachedData.WarrantyParentTicket
+			
+            $CachedData.WarrantyChildTicket += $WarrantyChildTicket
+            $CachedData.WarrantyRequestLine += $WarrantyRequestLine
+            $Cache:GUID = $CachedData
 
-			Set-Item -Path Cache:$GUID -Value (
-                $CachedData.WarrantyChildTicket += $WarrantyChildTicket
-                $CachedData.WarrantyRequestLine += $WarrantyRequestLine
-                $Cache:$GUID = $CachedData
-			)
 			New-UDInputAction -RedirectUrl "/WarrantyChild/$GUID"
         }
-        
 
 		#$AccountNumber = Find-TervisCustomer @BoundParameters
 		#
