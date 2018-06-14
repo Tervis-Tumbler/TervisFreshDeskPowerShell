@@ -20,7 +20,7 @@ $WarrantyRequest = New-WarrantyRequest -FirstName Bob -LastName Hope -Address1 "
 ),(
     New-WarrantyRequestLine -DesignName "Dogs" -Size "12oz (4 1/4)" -Quantity 1 -ManufactureYear 2013 -ReturnReason "heat distortion"
 )
-$WarrantyRequest | New-WarrantyRequestTicket
+$WarrantyRequest | New-WarrantyParentTicket
 $WarrantyRequest | New-WarrantyParentFreshDeskTicketParameter
 
 

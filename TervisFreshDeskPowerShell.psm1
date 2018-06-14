@@ -55,12 +55,12 @@ function New-WarrantyRequestLine {
             "Before 2004",2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,"NA"
         )][String]$ManufactureYear,
 
-        $ReturnReason
+        [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")]$ReturnReason
     )
     $PSBoundParameters | ConvertFrom-PSBoundParameters
 }
 
-function New-WarrantyRequestTicket {
+function New-WarrantyParentTicket {
     param (
         [Parameter(ValueFromPipeline)]$WarrantyRequest
     )
@@ -69,19 +69,31 @@ function New-WarrantyRequestTicket {
         New-WarrantyParentFreshDeskTicketParameter |
         ConvertTo-HashTable
 
-        $WarrantyParent = New-FreshDeskTicket @WarrantyParentFreshDeskTicketParameter
+        $WarrantyParentTicket = New-FreshDeskTicket @WarrantyParentFreshDeskTicketParameter
 
+        $WarrantyRequest.WarrantyLines | New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicket $WarrantyParentTicket
         foreach ($WarrantyLine in $WarrantyRequest.WarrantyLines) {
-            $ParametersFromWarantyParent = $WarrantyRequest | 
-            Select-Object -Property Email, FirstName, LastName | 
-            ConvertTo-HashTable
-
-            $WarrantyChildFreshDeskTicketParameter = $WarrantyLine |
-            New-WarrantyChildFreshDeskTicketParameter @ParametersFromWarantyParent -ParentID $WarrantyParent.id |
-            ConvertTo-HashTable
-
-            New-FreshDeskTicket @WarrantyChildFreshDeskTicketParameter
+            
         }
+    }
+}
+
+function New-WarrantyChildTicket {
+    param (
+        $WarrantyRequest,
+        [Parameter(ValueFromPipeline)]$WarrantyLine,
+        $WarrantyParentTicket
+    )
+    process {
+        $ParametersFromWarantyParent = $WarrantyRequest | 
+        Select-Object -Property Email, FirstName, LastName | 
+        ConvertTo-HashTable
+
+        $WarrantyChildFreshDeskTicketParameter = $WarrantyLine |
+        New-WarrantyChildFreshDeskTicketParameter @ParametersFromWarantyParent -ParentID $WarrantyParentTicket.id |
+        ConvertTo-HashTable
+
+        New-FreshDeskTicket @WarrantyChildFreshDeskTicketParameter
     }
 }
 
@@ -191,4 +203,127 @@ function New-WarrantyChildFreshDeskTicketParameter {
             ) | Remove-HashtableKeysWithEmptyOrNullValues
         }
     }
+}
+
+function New-TervisWarrantyFormDashboard {
+    $Port = 10001
+	Get-UDDashboard | Where port -eq $Port | Stop-UDDashboard
+
+	$NewWarrantyParentPage = New-UDPage -Name "NewWarrantyParentPage" -Icon home -Content {
+		New-UDInput -Title "New Warranty Parent" -Endpoint {
+			param (
+				$FirstName,
+                $LastName,
+                $BusinessName,
+                $Address1,
+                $Address2,
+                $City,
+                $State,
+                [String]$PostalCode,
+                [ValidateSet("Residence","Business")]$ResidentialOrBusinessAddress,
+                $PhoneNumber,
+                $Email
+            )
+            $WarrantyRequest = $PSBoundParameters | New-WarrantyRequest
+            $WarrantyParentTicket = $WarrantyRequest | New-WarrantyParentTicket
+			$GUID = New-Guid | Select-Object -ExpandProperty GUID
+			Set-Item -Path Cache:$GUID -Value (
+                [PSCustomObject][Ordered]@{
+                    $WarrantyParentParameters = $PSBoundParameters |
+                    ConvertFrom-PSBoundParameters -AsHashTable |
+                    Remove-HashtableKeysWithEmptyOrNullValues
+                    WarrantyParentTicket = $WarrantyParentTicket
+                    WarrantyRequest = $WarrantyRequest
+                    WarrantyChildTicket = @()
+                    WarrantyRequestLine = @()
+                }
+			)
+			New-UDInputAction -RedirectUrl "/WarrantyChild/$GUID"			
+		}
+	}
+
+	$NewWarrantyChildPage = New-UDPage -Url "/WarrantyChild/:GUID" -Icon link -Endpoint {
+		param(
+			$GUID
+		)		
+        $CachedData = Get-Item Cache:$GUID
+        New-UDCard -Title "Warranty Parent" -Text ($CachedData.WarrantyRequest | Out-String)
+        if ($CachedData.WarrantyRequestLine) {
+            New-UDCard -Title "Warranty Parent" -Text ($CachedData.WarrantyRequestLine | Out-String)
+        }
+
+        New-UDInput -Title "New Warranty Child" -Endpoint {
+			param (
+                $DesignName,
+                [ValidateSet(
+                    "10oz (5 1/2)",
+                    "12oz (4 1/4)",
+                    "wavy (5 1/2)",
+                    "wine glass (8 1/2)",
+                    "My First Tervis Sippy Cup (5 1/5)",
+                    "16oz (6)",
+                    "mug (5)",
+                    "stemless wine glass (4 4/5)",
+                    "24oz (7 7/8)",
+                    "water bottle (10.4)",
+                    "8oz (4)",
+                    "goblet (7 7/8)",
+                    "collectible (2 3/4)",
+                    "tall (6 1/4)",
+                    "stout (3 1/2)",
+                    "20oz Stainless Steel (6 3/4)",
+                    "30oz Stainless Steel (8)"
+                )]
+                $Size,
+        
+                [ValidateSet(1,2,3,4,5,6,7,8,9,10)][String]$Quantity,
+                [ValidateSet(
+                    "Before 2004",2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,"NA"
+                )][String]$ManufactureYear,
+        
+                [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")]$ReturnReason
+            )
+            $WarrantyRequestLine = $PSBoundParameters | New-WarrantyRequestLine
+            $WarrantyChildTicket = $WarrantyRequestLine | New-WarrantyChildTicket -WarrantyRequest $CachedData.WarrantyRequest -WarrantyParentTicket $CachedData.WarrantyParentTicket
+
+			Set-Item -Path Cache:$GUID -Value (
+                $CachedData.WarrantyChildTicket += $WarrantyChildTicket
+                $CachedData.WarrantyRequestLine += $WarrantyRequestLine
+                $Cache:$GUID = $CachedData
+			)
+			New-UDInputAction -RedirectUrl "/WarrantyChild/$GUID"
+        }
+        
+
+		#$AccountNumber = Find-TervisCustomer @BoundParameters
+		#
+		#if ($AccountNumber) {
+		#	New-UDCard -Title "Account Number(s)" -Text ($AccountNumber | Out-String)
+#
+		#	New-UDGrid -Title "Customers" -Headers AccountNumber, PARTY_NAME, ADDRESS1, CITY, STATE, POSTAL_CODE -Properties AccountNumber, PARTY_NAME, ADDRESS1, CITY, STATE, POSTAL_CODE -Endpoint {
+		#		$AccountNumber | 
+		#		% { 
+		#			$Account = Get-EBSTradingCommunityArchitectureCustomerAccount -Account_Number $_
+		#			$Organization = Get-EBSTradingCommunityArchitectureOrganizationObject -Party_ID $Account.Party_ID
+		#			$Organization | 
+		#			Select-Object -Property PARTY_NAME, ADDRESS1, CITY, STATE, POSTAL_CODE, @{
+		#				Name = "AccountNumber"
+		#				Expression = {New-UDLink -Text $Account.ACCOUNT_NUMBER -Url "/AccountDetails/$($Account.ACCOUNT_NUMBER)"}
+		#			}
+		#		} |
+		#		Out-UDGridData
+		#	}
+		#} else {
+		#	New-UDCard -Title "No Account Number(s) found that match your criteria"
+		#}
+		#New-UDCard -Title "Query" -Content {
+		#	New-UDLink -Text Query -Url /CustomerSearchSQLQuery/$GUID
+		#}		
+	}
+	
+	$Dashboard = New-UDDashboard -Pages @($NewWarrantyParentPage, $NewWarrantyChildPage) -Title "Warranty Request Form" -EndpointInitializationScript {
+        Set-TervisFreshDeskEnvironment
+	}
+
+	Start-UDDashboard -Dashboard $Dashboard -Port $Port -AllowHttpForLogin
 }
