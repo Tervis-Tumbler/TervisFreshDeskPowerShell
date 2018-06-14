@@ -2,6 +2,8 @@ ipmo -force freshdeskpowershell, TervisFreshDeskPowerShell
 Set-TervisFreshDeskEnvironment
 New-TervisWarrantyFormDashboard
 
+get-runspace | where {$_.Debugger.InBreakpoint} | Debug-Runspace
+
 Get-FreshDeskTicket | Measure-Object
 New-FreshDeskTicket -description "description" -subject "subject" -email "dur@nooaol.com" -priority 1 -status 2
 New-FreshDeskContact -name "Test Dur" -email dur@nooaol.com

@@ -10,25 +10,25 @@ function Set-TervisFreshDeskEnvironment {
 
 function New-WarrantyRequest {
     param (
-        $FirstName,
-        $LastName,
-        $BusinessName,
-        $Address1,
-        $Address2,
-        $City,
-        $State,
-        [String]$PostalCode,
-        [ValidateSet("Residence","Business")]$ResidentialOrBusinessAddress,
-        $PhoneNumber,
-        $Email,
-        $WarrantyLines
+        [Parameter(ValueFromPipelineByPropertyName)]$FirstName,
+        [Parameter(ValueFromPipelineByPropertyName)]$LastName,
+        [Parameter(ValueFromPipelineByPropertyName)]$BusinessName,
+        [Parameter(ValueFromPipelineByPropertyName)]$Address1,
+        [Parameter(ValueFromPipelineByPropertyName)]$Address2,
+        [Parameter(ValueFromPipelineByPropertyName)]$City,
+        [Parameter(ValueFromPipelineByPropertyName)]$State,
+        [Parameter(ValueFromPipelineByPropertyName)][String]$PostalCode,
+        [Parameter(ValueFromPipelineByPropertyName)][ValidateSet("Residence","Business")]$ResidentialOrBusinessAddress,
+        [Parameter(ValueFromPipelineByPropertyName)]$PhoneNumber,
+        [Parameter(ValueFromPipelineByPropertyName)]$Email,
+        [Parameter(ValueFromPipelineByPropertyName)]$WarrantyLines
     )
     $PSBoundParameters | ConvertFrom-PSBoundParameters
 }
 
 function New-WarrantyRequestLine {
     param (
-        $DesignName,
+        [Parameter(ValueFromPipelineByPropertyName)]$DesignName,
         [ValidateSet(
             "10oz (5 1/2)",
             "12oz (4 1/4)",
@@ -48,14 +48,14 @@ function New-WarrantyRequestLine {
             "20oz Stainless Steel (6 3/4)",
             "30oz Stainless Steel (8)"
         )]
-        $Size,
+        [Parameter(ValueFromPipelineByPropertyName)]$Size,
 
-        [ValidateSet(1,2,3,4,5,6,7,8,9,10)][String]$Quantity,
+        [ValidateSet(1,2,3,4,5,6,7,8,9,10)][Parameter(ValueFromPipelineByPropertyName)][String]$Quantity,
         [ValidateSet(
             "Before 2004",2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,"NA"
-        )][String]$ManufactureYear,
+        )][Parameter(ValueFromPipelineByPropertyName)][String]$ManufactureYear,
 
-        [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")]$ReturnReason
+        [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")][Parameter(ValueFromPipelineByPropertyName)]$ReturnReason
     )
     $PSBoundParameters | ConvertFrom-PSBoundParameters
 }
@@ -70,10 +70,10 @@ function New-WarrantyParentTicket {
         ConvertTo-HashTable
 
         $WarrantyParentTicket = New-FreshDeskTicket @WarrantyParentFreshDeskTicketParameter
-
-        $WarrantyRequest.WarrantyLines | New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicket $WarrantyParentTicket
-        foreach ($WarrantyLine in $WarrantyRequest.WarrantyLines) {
-            
+        $WarrantyParentTicket
+        if ($WarrantyRequest.WarrantyLines) {
+            $WarrantyRequest.WarrantyLines | 
+            New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicket $WarrantyParentTicket
         }
     }
 }
@@ -224,14 +224,15 @@ function New-TervisWarrantyFormDashboard {
                 $PhoneNumber,
                 $Email
             )
-            $WarrantyRequest = $PSBoundParameters | New-WarrantyRequest
+            $WarrantyRequest = New-WarrantyRequest @PSBoundParameters
             $WarrantyParentTicket = $WarrantyRequest | New-WarrantyParentTicket
 			$GUID = New-Guid | Select-Object -ExpandProperty GUID
 			Set-Item -Path Cache:$GUID -Value (
                 [PSCustomObject][Ordered]@{
-                    $WarrantyParentParameters = $PSBoundParameters |
+                    WarrantyParentParameters = $PSBoundParameters |
                     ConvertFrom-PSBoundParameters -AsHashTable |
                     Remove-HashtableKeysWithEmptyOrNullValues
+
                     WarrantyParentTicket = $WarrantyParentTicket
                     WarrantyRequest = $WarrantyRequest
                     WarrantyChildTicket = @()
@@ -245,14 +246,44 @@ function New-TervisWarrantyFormDashboard {
 	$NewWarrantyChildPage = New-UDPage -Url "/WarrantyChild/:GUID" -Icon link -Endpoint {
 		param(
 			$GUID
-		)		
+        )
         $CachedData = Get-Item Cache:$GUID
-        New-UDCard -Title "Warranty Parent" -Text ($CachedData.WarrantyRequest | Out-String)
-        if ($CachedData.WarrantyRequestLine) {
-            New-UDCard -Title "Warranty Parent" -Text ($CachedData.WarrantyRequestLine | Out-String)
+        New-UDTable -Title "Warranty Parent" -Id "WarrantyParentTable" -Headers ID, FirstName, LastName, BusinessName, Address1, Address2, City, State, PostalCode, ResidentialOrBusinessAddress, PhoneNumber, Email, Action -Endpoint {
+            $CachedData = Get-Item Cache:$GUID
+            $CachedData.WarrantyRequest |
+            Select-Object -Property @{
+                Name = "ID"
+                Expression = {$CachedData.WarrantyParentTicket.ID}
+            }, *, 
+            @{
+                Name = "Remove"
+                Expression = {
+                    New-UDElement -Tag "a" -Attributes @{
+                        className = "btn"
+                        onClick = {
+                            $CachedData = Get-Item Cache:$GUID
+                            $CachedData.WarrantyChildTicket | Remove-FreshDeskTicket
+                            $CachedData.WarrantyParentTicket | Remove-FreshDeskTicket
+                            Remove-Item -Path Cache:$GUID
+                            Remove-UDElement -Id "WarrantyParentTable"
+                            Remove-UDElement -Id "WarrantyChildTable"
+                            Remove-UDElement -Id "NewWarrantyChildInput"
+                        }
+                    } -Content { 
+                        "Remove" 
+                    } 
+                }
+            } |
+            Out-UDTableData -Property ID, FirstName, LastName, BusinessName, Address1, Address2, City, State, PostalCode, ResidentialOrBusinessAddress, PhoneNumber, Email, Remove
         }
+        
+        New-UDTable -Title "Warranty Child" -Id "WarrantyChildTable" -Headers DesignName, Size, Quantity, ManufactureYear, ReturnReason -Endpoint {
+            $CachedData = Get-Item Cache:$GUID
+            $CachedData.WarrantyRequestLine |
+            Out-UDTableData -Property DesignName, Size, Quantity, ManufactureYear, ReturnReason
+        } #-AutoRefresh -RefreshInterval 2
 
-        New-UDInput -Title "New Warranty Child" -Endpoint {
+        New-UDInput -Title "New Warranty Child" -Id "NewWarrantyChildInput" -Endpoint {
 			param (
                 $DesignName,
                 [ValidateSet(
@@ -274,23 +305,26 @@ function New-TervisWarrantyFormDashboard {
                     "20oz Stainless Steel (6 3/4)",
                     "30oz Stainless Steel (8)"
                 )]
-                $Size,
+                [String]$Size,
         
-                [ValidateSet(1,2,3,4,5,6,7,8,9,10)][String]$Quantity,
+                [ValidateSet("1","2","3","4","5","6","7","8","9","10")][String]$Quantity,
                 [ValidateSet(
-                    "Before 2004",2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,"NA"
+                    "Before 2004","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","NA"
                 )][String]$ManufactureYear,
         
-                [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")]$ReturnReason
+                [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")][String]$ReturnReason
             )
-            $WarrantyRequestLine = $PSBoundParameters | New-WarrantyRequestLine
+            $CachedData = Get-Item Cache:$GUID
+            $WarrantyRequestLine = New-WarrantyRequestLine @PSBoundParameters
             $WarrantyChildTicket = $WarrantyRequestLine | New-WarrantyChildTicket -WarrantyRequest $CachedData.WarrantyRequest -WarrantyParentTicket $CachedData.WarrantyParentTicket
 			
             $CachedData.WarrantyChildTicket += $WarrantyChildTicket
             $CachedData.WarrantyRequestLine += $WarrantyRequestLine
-            $Cache:GUID = $CachedData
+            #$Cache:GUID = $CachedData Does nothing
 
-			New-UDInputAction -RedirectUrl "/WarrantyChild/$GUID"
+            New-UDInputAction -ClearInput -Toast "Warranty Line Created"
+            New-UDInputAction -RedirectUrl "http://localhost:10001/WarrantyChild/$GUID" #Workaround 
+            #New-UDInputAction -RedirectUrl "/WarrantyChild/$GUID" #Doesn't work to force a page refresh
         }
 
 		#$AccountNumber = Find-TervisCustomer @BoundParameters
