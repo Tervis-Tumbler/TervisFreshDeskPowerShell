@@ -265,17 +265,20 @@ function New-TervisWarrantyFormDashboard {
                             $CachedData.WarrantyChildTicket | Remove-FreshDeskTicket
                             $CachedData.WarrantyParentTicket | Remove-FreshDeskTicket
                             Remove-Item -Path Cache:$GUID
-                            Remove-UDElement -Id "WarrantyParentTable"
-                            Remove-UDElement -Id "WarrantyChildTable"
-                            Remove-UDElement -Id "NewWarrantyChildInput"
+                            Add-UDElement -ParentId "RedirectParent" -Content {
+                                New-UDHtml -Markup @"
+                                    <meta http-equiv="refresh" content="0; URL='/'" />
+"@
+                            }
                         }
-                    } -Content { 
+                    } -Content {
                         "Remove" 
                     } 
                 }
             } |
             Out-UDTableData -Property ID, FirstName, LastName, BusinessName, Address1, Address2, City, State, PostalCode, ResidentialOrBusinessAddress, PhoneNumber, Email, Remove
         }
+        New-UDElement -Tag div -Id RedirectParent
         
         New-UDTable -Title "Warranty Child" -Id "WarrantyChildTable" -Headers DesignName, Size, Quantity, ManufactureYear, ReturnReason -Endpoint {
             $CachedData = Get-Item Cache:$GUID
@@ -323,7 +326,12 @@ function New-TervisWarrantyFormDashboard {
             #$Cache:GUID = $CachedData Does nothing
 
             New-UDInputAction -ClearInput -Toast "Warranty Line Created"
-            New-UDInputAction -RedirectUrl "http://localhost:10001/WarrantyChild/$GUID" #Workaround 
+            Add-UDElement -ParentId "RedirectParent" -Content {
+                New-UDHtml -Markup @"
+                <meta http-equiv="refresh" content="0; URL='/WarrantyChild/$GUID'" />
+"@
+            }
+            #New-UDInputAction -RedirectUrl "http://localhost:10001/WarrantyChild/$GUID" #Workaround 
             #New-UDInputAction -RedirectUrl "/WarrantyChild/$GUID" #Doesn't work to force a page refresh
         }
 
