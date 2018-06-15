@@ -249,6 +249,31 @@ function New-WarrantyChildFreshDeskTicketParameter {
     }
 }
 
+function Invoke-NewUDInputWarrantyChildInput {
+    param (
+        $Parameters
+    )
+    $CachedData = Get-Item Cache:$GUID
+    $WarrantyRequestLine = New-WarrantyRequestLine @Parameters
+
+    $WarrantyRequest = Get-FreshDeskTicket -ID $CachedData.WarrantyParentTicketID | 
+    ConvertFrom-FreshDeskTicketToWarrantyRequest
+
+    $WarrantyChildTicket = $WarrantyRequestLine | 
+    New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicketID $CachedData.WarrantyParentTicketID
+
+    if ($WarrantyChildTicket) {
+        $CachedData.WarrantyChildTicketID.Add($WarrantyChildTicket.ID)
+
+        Add-UDElement -ParentId "RedirectParent" -Content {
+            New-UDHtml -Markup @"
+            <meta http-equiv="refresh" content="0; URL='/WarrantyChild/$GUID'" />
+"@
+        }
+    #New-UDInputAction -ClearInput -Toast "Warranty Line Created" #Given we are redirecting the whole page below I don't know that we need this
+    }    
+}
+
 function New-TervisWarrantyFormDashboard {
     $Port = 10001
 	Get-UDDashboard | Where port -eq $Port | Stop-UDDashboard
@@ -294,7 +319,8 @@ function New-TervisWarrantyFormDashboard {
             New-UDColumn -Size 12 {
                 New-UDTable -Title "Warranty Parent" -Id "WarrantyParentTable" -Headers ID, FirstName, LastName, BusinessName, Address1, Address2, City, State, PostalCode, ResidentialOrBusinessAddress, PhoneNumber, Email, Action -Endpoint {
                     $CachedData = Get-Item Cache:$GUID
-                    $WarrantyRequest = Get-FreshDeskTicket -ID $CachedData.WarrantyParentTicketID | 
+                    $WarrantyRequest = Get-FreshDeskTicket -ID $CachedData.WarrantyParentTicketID |
+                    Where-Object {-Not $_.Deleted} |
                     ConvertFrom-FreshDeskTicketToWarrantyRequest |
                     Add-Member -MemberType NoteProperty -PassThru -Name ID -Value $CachedData.WarrantyParentTicketID |
                     Add-Member -MemberType NoteProperty -PassThru -Name Remove -Value (
@@ -354,23 +380,7 @@ function New-TervisWarrantyFormDashboard {
                 
                         [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")][String]$ReturnReason
                     )
-                    $CachedData = Get-Item Cache:$GUID
-                    $WarrantyRequestLine = New-WarrantyRequestLine @PSBoundParameters
-                    
-                    $WarrantyRequest = Get-FreshDeskTicket -ID $CachedData.WarrantyParentTicketID | 
-                    ConvertFrom-FreshDeskTicketToWarrantyRequest
-
-                    $WarrantyChildTicket = $WarrantyRequestLine | 
-                    New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicketID $CachedData.WarrantyParentTicketID
-
-                    $CachedData.WarrantyChildTicketID.Add($WarrantyChildTicket.ID)
-
-                    Add-UDElement -ParentId "RedirectParent" -Content {
-                        New-UDHtml -Markup @"
-                        <meta http-equiv="refresh" content="0; URL='/WarrantyChild/$GUID'" />
-"@  
-                    #New-UDInputAction -ClearInput -Toast "Warranty Line Created" #Given we are redirecting the whole page below I don't know that we need this
-                    }                    
+                    Invoke-NewUDInputWarrantyChildInput -Parameters $PSBoundParameters
                 }
 
                 New-UDTable -Title "Warranty Child" -Id "WarrantyChildTable" -Headers ID, DesignName, Size, Quantity, ManufactureYear, ReturnReason, Action -Endpoint {
@@ -399,31 +409,10 @@ function New-TervisWarrantyFormDashboard {
                                         }
                                     }
                                 } -Content {
-                                    "Remove$($_.ID)"
+                                    "Remove"
                                 }
                             }
                         }
-
-                                                # |
-                        #Add-Member -MemberType NoteProperty -Name Remove -PassThru -Value (
-                        #    New-UDElement -Tag "a" -Attributes @{
-                        #        className = "btn"
-                        #        onClick = {
-                        #            $CachedData = Get-Item Cache:$GUID
-                        #            Remove-FreshDeskTicket -ID $_
-
-                        #            $CachedData.WarrantyChildTicketID.Remove($_)
-
-                        #            Add-UDElement -ParentId "RedirectParent" -Content {
-                        #                New-UDHtml -Markup @"
-                        #                    <meta http-equiv="refresh" content="0; URL='/WarrantyChild/$GUID'" />
-#"@  
-                        #            }
-                        #        }
-                        #    } -Content {
-                        #        "Remove"
-                        #    } 
-                        #)
                     } |
                     Out-UDTableData -Property ID, DesignName, Size, Quantity, ManufactureYear, ReturnReason, Remove
                 } #-AutoRefresh -RefreshInterval 2  
