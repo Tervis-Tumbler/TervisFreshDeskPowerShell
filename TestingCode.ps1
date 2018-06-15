@@ -16,6 +16,7 @@ try {
 } catch {
     [PSCustomObject]@{
         StatusCode = $_.Exception.Response.StatusCode.value__
+        Message = $_.Exception.Response
     }
 }
 
