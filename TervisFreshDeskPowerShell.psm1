@@ -267,7 +267,7 @@ function New-WarrantyChildFreshDeskTicketParameter {
             priority = 1
             email = $Email
             source = 2
-            status = 2
+            status = 5
             type = "Warranty Child"
             subject = "$DesignName $Size for $FirstName $LastName"
             description = "Warranty Child Request for Parent Ticket : $ParentID"
@@ -468,6 +468,19 @@ function New-TervisWarrantyFormDashboard {
                 }
 
                 New-UDTableWarrantyChild
+                
+                New-UDElement -Tag "a" -Attributes @{
+                    className = "btn"
+                    onClick = {
+                        Add-UDElement -ParentId "RedirectParent" -Content {
+                            New-UDHtml -Markup @"
+                                <meta http-equiv="refresh" content="0; URL='/'" />
+"@
+                        }
+                    }
+                } -Content {
+                    "Done" 
+                }
             }
         }
     }   
