@@ -368,14 +368,16 @@ function New-TervisWarrantyFormDashboard {
                             "collectible (2 3/4)",
                             "tall (6 1/4)",
                             "stout (3 1/2)",
-                            "20oz Stainless Steel (6 3/4)",
-                            "30oz Stainless Steel (8)"
+                            "20oz stainless Steel (6 3/4)",
+                            "30oz stainless Steel (8)",
+                            "12oz stainless (4.85)",
+                            "stainless water bottle (10.75)"
                         )]
                         [String]$Size,
                 
-                        [ValidateSet("1","2","3","4","5","6","7","8","9","10","error")][String]$Quantity,
+                        [ValidateSet("1","2","3","4","5","6","7","8","9","10")][String]$Quantity,
                         [ValidateSet(
-                            "Before 2004","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","NA"
+                            "Before 2004","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","NA","Non Tervis"
                         )][String]$ManufactureYear,
                 
                         [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")][String]$ReturnReason
