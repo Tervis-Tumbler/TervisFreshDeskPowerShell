@@ -436,6 +436,11 @@ function New-TervisWarrantyFormDashboard {
     }   
 	
 	$Dashboard = New-UDDashboard -Pages @($NewWarrantyParentPage, $NewWarrantyChildPage) -Title "Warranty Request Form" -EndpointInitializationScript {
+        #Get-ChildItem -Path C:\ProgramData\PowerShellApplication\TervisFreshDeskPowerShell -File -Recurse -Filter *.psm1 -Depth 2 |
+        #ForEach-Object {
+        #    Import-Module -Name $_.FullName -Force
+        #}
+        
         Set-TervisFreshDeskEnvironment
 	}
 
@@ -448,7 +453,8 @@ function Install-TervisFreshDeskWarrantyForm {
 	)
 	Install-PowerShellApplicationUniversalDashboard -ComputerName $ComputerName -ModuleName TervisFreshDeskPowerShell -TervisModuleDependencies PasswordstatePowerShell,
 		TervisMicrosoft.PowerShell.Utility,
-        FreshDeskPowerShell -PowerShellGalleryDependencies UniversalDashboard -CommandString "New-TervisWarrantyFormDashboard"
+        FreshDeskPowerShell,
+        WebServicesPowerShellProxyBuilder -PowerShellGalleryDependencies UniversalDashboard -CommandString "New-TervisWarrantyFormDashboard"
 
 	$PowerShellApplicationInstallDirectory = Get-PowerShellApplicationInstallDirectory -ComputerName $ComputerName -ModuleName TervisFreshDeskPowerShell
 	Invoke-Command -ComputerName $ComputerName -ScriptBlock {
