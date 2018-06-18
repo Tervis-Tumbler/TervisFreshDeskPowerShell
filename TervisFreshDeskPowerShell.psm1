@@ -452,7 +452,7 @@ function Install-TervisFreshDeskWarrantyForm {
 
 	$PowerShellApplicationInstallDirectory = Get-PowerShellApplicationInstallDirectory -ComputerName $ComputerName -ModuleName TervisFreshDeskPowerShell
 	Invoke-Command -ComputerName $ComputerName -ScriptBlock {
-		New-NetFirewallRule -Name UniversalDashboard -Profile Any -Direction Inbound -Action Allow -LocalPort 10001 -DisplayName TervisWarrantyFormDashboard -Protocol TCP
+		New-NetFirewallRule -Name TervisWarrantyFormDashboard -DisplayName TervisWarrantyFormDashboard -Profile Any -Direction Inbound -Action Allow -LocalPort 10001 -Protocol TCP
 		#. $Using:PowerShellApplicationInstallDirectory\Import-ApplicationModules.ps1
 		#Set-PSRepository -Trusted -Name PowerShellGallery
 		#Install-Module -Name UniversalDashboard -Scopoe CurrentUser
