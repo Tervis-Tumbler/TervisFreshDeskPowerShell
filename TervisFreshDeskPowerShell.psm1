@@ -79,7 +79,18 @@ function New-WarrantyRequestLine {
             "Before 2004",2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,"NA","Non Tervis"
         )][Parameter(ValueFromPipelineByPropertyName)][String]$ManufactureYear,
 
-        [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")][Parameter(ValueFromPipelineByPropertyName)]$ReturnReason
+        [ValidateSet(
+            "cracked",
+            "cracked not at weld",
+            "cracked stress cracks",
+            "decoration fail",
+            "film",
+            "heat distortion",
+            "stainless defect",
+            "seal failure",
+            "sunscreen"
+        )]
+        [Parameter(ValueFromPipelineByPropertyName)]$ReturnReason
     )
     $PSBoundParameters | ConvertFrom-PSBoundParameters
 }
@@ -196,6 +207,16 @@ $ReturnReasonToIssueTypeMapping = @{
         cf_issue_description = ".110 Cracked"
         cf_issue_subcode = ".01-Cracked at Weld"
     }
+    "cracked not at weld" = @{ #"02.110.03"
+        cf_issue_type = "02-Product"
+        cf_issue_description = ".110 Cracked"
+        cf_issue_subcode = ".03-No at weld"
+    }
+    "cracked stress cracks" = @{ #"02.110.02"
+        cf_issue_type = "02-Product"
+        cf_issue_description = ".110 Cracked"
+        cf_issue_subcode = ".02-Stress Cracks"
+    }
     "decoration fail" = @{ #"02.600.01"
         cf_issue_type = "02-Product"
         cf_issue_description = ".600 Decoration"
@@ -220,6 +241,11 @@ $ReturnReasonToIssueTypeMapping = @{
         cf_issue_type = "02-Product"
         cf_issue_description = ".100 - Weld/Seal"
         cf_issue_subcode = ".01-Tumbler in two pieces"
+    }
+    "sunscreen" = @{ #"02.200.03"
+        cf_issue_type = "02-Product"
+        cf_issue_description = ".200 Surface"
+        cf_issue_subcode = ".03-Sunscreen"
     }
 }
 
@@ -425,7 +451,18 @@ function New-TervisWarrantyFormDashboard {
                             "Before 2004","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","NA","Non Tervis"
                         )][String]$ManufactureYear,
                 
-                        [ValidateSet("cracked","decoration fail","film","heat distortion","stainless defect","seal failure")][String]$ReturnReason
+                        [ValidateSet(
+                            "cracked",
+                            "cracked not at weld",
+                            "cracked stress cracks",
+                            "decoration fail",
+                            "film",
+                            "heat distortion",
+                            "stainless defect",
+                            "seal failure",
+                            "sunscreen"
+                        )]
+                        [String]$ReturnReason
                     )
                     Invoke-NewUDInputWarrantyChildInput -Parameters $PSBoundParameters
                 }
