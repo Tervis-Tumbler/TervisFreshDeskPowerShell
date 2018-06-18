@@ -103,6 +103,9 @@ function ConvertFrom-FreshDeskTicketToWarrantyRequestLine {
         $ReturnReason = $ReturnReasonToIssueTypeMapping.keys |
         Where-Object {
             $ReturnReasonToIssueTypeMapping.$_.cf_issue_description -eq $Ticket.custom_fields.cf_issue_description
+        } |
+        Where-Object {
+            $ReturnReasonToIssueTypeMapping.$_.cf_issue_subcode -eq $Ticket.custom_fields.cf_issue_subcode
         }
         
         $WarrantyRequestLineParameters = @{
