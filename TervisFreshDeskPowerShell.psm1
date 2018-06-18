@@ -441,3 +441,23 @@ function New-TervisWarrantyFormDashboard {
 
 	Start-UDDashboard -Dashboard $Dashboard -Port $Port -AllowHttpForLogin
 }
+
+function Install-TervisFreshDeskWarrantyForm {
+	param (
+		$ComputerName
+	)
+	Install-PowerShellApplicationUniversalDashboard -ComputerName $ComputerName -ModuleName TervisFreshDeskPowerShell -TervisModuleDependencies PasswordstatePowerShell,
+		TervisMicrosoft.PowerShell.Utility,
+        FreshDeskPowerShell -PowerShellGalleryDependencies UniversalDashboard -CommandString "New-TervisWarrantyFormDashboard"
+
+	$PowerShellApplicationInstallDirectory = Get-PowerShellApplicationInstallDirectory -ComputerName $ComputerName -ModuleName TervisFreshDeskPowerShell
+	Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+		New-NetFirewallRule -Name UniversalDashboard -Profile Any -Direction Inbound -Action Allow -LocalPort 10001 -DisplayName TervisWarrantyFormDashboard -Protocol TCP
+		#. $Using:PowerShellApplicationInstallDirectory\Import-ApplicationModules.ps1
+		#Set-PSRepository -Trusted -Name PowerShellGallery
+		#Install-Module -Name UniversalDashboard -Scopoe CurrentUser
+		#$PSModulePathCurrentUser = Get-UserPSModulePath
+		#Copy-Item -Path $PSModulePathCurrentUser -Destination $Using:PowerShellApplicationInstallDirectory\. -Recurse
+		#Publish-UDDashboard -DashboardFile $Using:PowerShellApplicationInstallDirectory\Script.ps1
+	}
+}
