@@ -138,26 +138,34 @@ function New-WarrantyParentTicket {
         $WarrantyParentTicket
         if ($WarrantyRequest.WarrantyLines) {
             $WarrantyRequest.WarrantyLines | 
-            New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicket $WarrantyParentTicket
+            New-WarrantyChildTicket -WarrantyParentTicket $WarrantyParentTicket
         }
     }
 }
 
 function New-WarrantyChildTicket {
     param (
-        [Parameter(Mandatory)]$WarrantyRequest,
         [Parameter(Mandatory,ValueFromPipeline)]$WarrantyLine,
-        [Parameter(Mandatory)]$WarrantyParentTicketID
+        [Parameter(Mandatory,ParameterSetName="WarrantyParentTicketID")]$WarrantyParentTicketID,
+        [Parameter(Mandatory,ParameterSetName="WarrantyParentTicket")]$WarrantyParentTicket
     )
     process {
+        if (-not $WarrantyParentTicket) {
+            $WarrantyParentTicket = Get-FreshDeskTicket -ID $WarrantyParentTicketID
+        } 
+
+        $WarrantyRequest = $WarrantyParentTicket | 
+        ConvertFrom-FreshDeskTicketToWarrantyRequest
+
         $ParametersFromWarantyParent = $WarrantyRequest | 
         Select-Object -Property Email, FirstName, LastName | 
-        ConvertTo-HashTable
+        ConvertTo-HashTable |
+        Remove-HashtableKeysWithEmptyOrNullValues
 
         $WarrantyChildFreshDeskTicketParameter = $WarrantyLine |
         New-WarrantyChildFreshDeskTicketParameter @ParametersFromWarantyParent -ParentID $WarrantyParentTicketID
 
-        New-FreshDeskTicket @WarrantyChildFreshDeskTicketParameter
+        New-FreshDeskTicket @WarrantyChildFreshDeskTicketParameter -requester_id $WarrantyParentTicket.requester_id
     }
 }
 
@@ -305,11 +313,8 @@ function Invoke-NewUDInputWarrantyChildInput {
     )
     $WarrantyRequestLine = New-WarrantyRequestLine @Parameters
 
-    $WarrantyRequest = Get-FreshDeskTicket -ID $Session:WarrantyParentTicketID | 
-    ConvertFrom-FreshDeskTicketToWarrantyRequest
-
     $WarrantyChildTicket = $WarrantyRequestLine | 
-    New-WarrantyChildTicket -WarrantyRequest $WarrantyRequest -WarrantyParentTicketID $Session:WarrantyParentTicketID
+    New-WarrantyChildTicket -WarrantyParentTicketID $Session:WarrantyParentTicketID
 
     if ($WarrantyChildTicket) {
         $Session:WarrantyChildTicketID.Add($WarrantyChildTicket.ID)
