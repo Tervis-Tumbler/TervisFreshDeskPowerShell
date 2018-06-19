@@ -1,5 +1,5 @@
 function Set-TervisFreshDeskAPIKey {
-    $APIKey = Get-PasswordstatePassword -ID 5452 | Select-Object -ExpandProperty Password
+    $APIKey = Get-PasswordstatePassword -ID 5469 | Select-Object -ExpandProperty Password
     Set-FreshDeskAPIKey -APIKey $APIKey
 }
 
