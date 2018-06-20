@@ -1,5 +1,5 @@
 function Set-TervisFreshDeskAPIKey {
-    $APIKey = Get-PasswordstatePassword -ID 5469 | Select-Object -ExpandProperty Password
+    $APIKey = Get-PasswordstatePassword -ID 5470 | Select-Object -ExpandProperty Password
     Set-FreshDeskAPIKey -APIKey $APIKey
 }
 
@@ -406,6 +406,9 @@ function New-TervisWarrantyFormDashboard {
                         $Address1,
                         $Address2,
                         $City,
+                        [ValidateSet(
+                            "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","GU","PR","VI","AE","AA","AP"
+                        )]
                         $State,
                         [String]$PostalCode,
                         [ValidateSet("Residence","Business")]$ResidentialOrBusinessAddress,
