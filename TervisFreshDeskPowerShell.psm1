@@ -43,6 +43,7 @@ function ConvertFrom-FreshDeskTicketToWarrantyRequest {
             ResidentialOrBusinessAddress = $Ticket.custom_fields.cf_residenceorbusiness
             PhoneNumber = $Ticket.custom_fields.cf_phonenumber
             Email = $Ticket.custom_fields.cf_email
+            Source = $Ticket.custom_fields.cf_source_external
         } | Remove-HashtableKeysWithEmptyOrNullValues
         New-WarrantyRequest @WarrantyRequestParameters
     }
@@ -114,6 +115,7 @@ function ConvertFrom-FreshDeskTicketToWarrantyRequestLine {
             Quantity = $Ticket.custom_fields.cf_quantity
             ManufactureYear = $Ticket.custom_fields.cf_mfd_year
             ReturnReason = $ReturnReason
+            Source = $Ticket.custom_fields.cf_source_external
         } | Remove-HashtableKeysWithEmptyOrNullValues
         New-WarrantyRequestLine @WarrantyRequestLineParameters
     }
@@ -206,7 +208,8 @@ function New-WarrantyParentFreshDeskTicketParameter {
 		        cf_postalcode = $PostalCode
 		        cf_residenceorbusiness = $ResidentialOrBusinessAddress
                 cf_phonenumber = $PhoneNumber
-		        cf_email = $Email
+                cf_email = $Email
+                cf_source_external = "Warranty Return Form Internal"
 		    } | Remove-HashtableKeysWithEmptyOrNullValues
         } | Remove-HashtableKeysWithEmptyOrNullValues
     }
@@ -289,6 +292,7 @@ function New-WarrantyChildFreshDeskTicketParameter {
                     cf_quantity = $Quantity
                     cf_design_name = $DesignName
                     cf_mfd_year = $ManufactureYear
+                    cf_source_external = "Warranty Return Form Internal"
                 } + $IssueTypeFields
             ) | Remove-HashtableKeysWithEmptyOrNullValues
         } | Remove-HashtableKeysWithEmptyOrNullValues
@@ -407,7 +411,7 @@ function New-TervisWarrantyFormDashboard {
                         $Address2,
                         $City,
                         [ValidateSet(
-                            "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","GU","PR","VI","AE","AA","AP"
+                            "AL","AK","AZ","AR","CA","CO","CT","DC","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","GU","PR","VI","AE","AA","AP"
                         )]
                         $State,
                         [String]$PostalCode,
