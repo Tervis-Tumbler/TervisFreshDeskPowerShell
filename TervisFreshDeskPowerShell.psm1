@@ -43,7 +43,6 @@ function ConvertFrom-FreshDeskTicketToWarrantyRequest {
             ResidentialOrBusinessAddress = $Ticket.custom_fields.cf_residenceorbusiness
             PhoneNumber = $Ticket.custom_fields.cf_phonenumber
             Email = $Ticket.custom_fields.cf_email
-            Source = $Ticket.custom_fields.cf_source_external
         } | Remove-HashtableKeysWithEmptyOrNullValues
         New-WarrantyRequest @WarrantyRequestParameters
     }
@@ -115,7 +114,6 @@ function ConvertFrom-FreshDeskTicketToWarrantyRequestLine {
             Quantity = $Ticket.custom_fields.cf_quantity
             ManufactureYear = $Ticket.custom_fields.cf_mfd_year
             ReturnReason = $ReturnReason
-            Source = $Ticket.custom_fields.cf_source_external
         } | Remove-HashtableKeysWithEmptyOrNullValues
         New-WarrantyRequestLine @WarrantyRequestLineParameters
     }
@@ -209,7 +207,7 @@ function New-WarrantyParentFreshDeskTicketParameter {
 		        cf_residenceorbusiness = $ResidentialOrBusinessAddress
                 cf_phonenumber = $PhoneNumber
                 cf_email = $Email
-                cf_source_external = "Warranty Return Form Internal"
+                cf_source = "Warranty Return Form Internal"
 		    } | Remove-HashtableKeysWithEmptyOrNullValues
         } | Remove-HashtableKeysWithEmptyOrNullValues
     }
@@ -292,7 +290,7 @@ function New-WarrantyChildFreshDeskTicketParameter {
                     cf_quantity = $Quantity
                     cf_design_name = $DesignName
                     cf_mfd_year = $ManufactureYear
-                    cf_source_external = "Warranty Return Form Internal"
+                    cf_source = "Warranty Return Form Internal"
                 } + $IssueTypeFields
             ) | Remove-HashtableKeysWithEmptyOrNullValues
         } | Remove-HashtableKeysWithEmptyOrNullValues
