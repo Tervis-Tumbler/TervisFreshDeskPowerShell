@@ -8,9 +8,9 @@ function Set-TervisFreshDeskEnvironment {
     Set-FreshDeskDomain -Domain Tervis
 }
 
-function Get-TervisFreshDeskTicketFields {
+function Get-TervisFreshDeskTicketField {
     if (-not $Script:TicketFields) {
-        $Script:TicketFields = Get-FreshDeskTicketFields
+        $Script:TicketFields = Get-FreshDeskTicketField
     }
 
     $Script:TicketFields
