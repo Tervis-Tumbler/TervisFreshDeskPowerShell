@@ -1,6 +1,9 @@
-ipmo -force freshdeskpowershell, TervisFreshDeskPowerShell
+ipmo -force freshdeskpowershell, TervisFreshDeskPowerShell, TervisWarrantyFormInternal, TervisWarrantyRequest
 New-TervisWarrantyFormDashboard
 Set-TervisFreshDeskEnvironment
+
+1..10 | % {Get-FreshDeskTicketField | Out-Null}
+Get-FreshdeskAPIAverageExecutionTime
 
 get-runspace | where {$_.Debugger.InBreakpoint} | Debug-Runspace
 
