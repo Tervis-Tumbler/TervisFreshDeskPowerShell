@@ -8,6 +8,11 @@ function Set-TervisFreshDeskEnvironment {
     Set-FreshDeskDomain -Domain Tervis
 }
 
+function Remove-TervisFreshDeskEnvironment {
+    Remove-FreshDeskAPIKey
+    Remove-FreshDeskDomain
+}
+
 function Get-TervisFreshDeskTicketField {
     if (-not $Script:TicketFields) {
         $Script:TicketFields = Get-FreshDeskTicketField
