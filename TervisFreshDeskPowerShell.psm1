@@ -15,8 +15,12 @@ function Remove-TervisFreshDeskEnvironment {
 }
 
 function Get-TervisFreshDeskTicketField {
-    if (-not $Script:TicketFields) {
-        $Script:TicketFields = Get-FreshDeskTicketField
+    param (
+        $Credential
+    )
+    $CredentialParameter = $PSBoundParameters | ConvertFrom-PSBoundParameters -Property Credential -AsHashTable
+    if (-not $Script:TicketFields) { 
+        $Script:TicketFields = Get-FreshDeskTicketField @CredentialParameter
     }
 
     $Script:TicketFields
