@@ -10,6 +10,7 @@ function Set-TervisFreshDeskEnvironment {
 
 function Remove-TervisFreshDeskEnvironment {
     Remove-FreshDeskAPIKey
+    Remove-FreshDeskCredential
     Remove-FreshDeskDomain
 }
 
