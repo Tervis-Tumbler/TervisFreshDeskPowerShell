@@ -88,3 +88,26 @@ function Invoke-TervisUpdateQuantityToQuantityNumber {
         Start-Sleep -Seconds 1.2
     }
 }
+
+function Invoke-TervisUpdateIssueTypeIfOnlyReasonForReturnPopulated {
+    Set-TervisFreshDeskEnvironment
+    $ReturnReasonIssueTypeMapping = Get-ReturnReasonIssueTypeMapping
+    $Tickets = Import-Csv -Path "C:\Users\c.magnuson\Downloads\35000046444_tickets-August-21-2018-15_45.csv" |
+    Where-Object -FilterScript {
+        $_.Type -eq "Warranty Child" -and
+        -not $_."Issue Type" -and
+        $_."Reason for Return"
+    } |
+    Add-Member -MemberType ScriptProperty -Name IssueTypeMapping -PassThru -Value {
+        $ReturnReasonIssueTypeMapping[$this."Reason for Return"]
+    }
+
+    $Tickets | Select-Object -Property Type, "Issue Type", "Reason for Return", IssueTypeMapping | FT
+    $Tickets | Where-object {$_."Reason for Return" -in $ReturnReasonIssueTypeMapping.Keys} | Measure-Object
+    $Tickets | Measure-Object
+    
+    $Results = $Tickets | 
+    ForEach-Object {
+        Set-FreshDeskTicket -id $_."Ticket ID" -custom_fields $_.IssueTypeMapping
+    }
+}
