@@ -22,8 +22,11 @@ function Get-TervisFreshDeskTicketField {
 }
 
 function Invoke-TervisUpdateQuantityToQuantityNumber {
+    param (
+        $PathToExport
+    )
     Set-TervisFreshDeskEnvironment
-    $Tickets = Import-Csv -Path "C:\Users\cmagnuson\OneDrive - tervis\Downloads\tickets-August-02-2018-18_16.csv" | 
+    $Tickets = Import-Csv -Path $PathToExport | 
     Add-Member -MemberType ScriptProperty -Name QuantityNumberInt -Value {
         if ($this.QuantityNumber) {
             [int]$this.QuantityNumber
@@ -90,9 +93,12 @@ function Invoke-TervisUpdateQuantityToQuantityNumber {
 }
 
 function Invoke-TervisUpdateIssueTypeIfOnlyReasonForReturnPopulated {
+    param (
+        $PathToExport
+    )
     Set-TervisFreshDeskEnvironment
     $ReturnReasonIssueTypeMapping = Get-ReturnReasonIssueTypeMapping
-    $Tickets = Import-Csv -Path "C:\Users\c.magnuson\Downloads\35000046444_tickets-August-21-2018-15_45.csv" |
+    $Tickets = Import-Csv -Path $PathToExport |
     Where-Object -FilterScript {
         $_.Type -eq "Warranty Child" -and
         -not $_."Issue Type" -and
@@ -109,5 +115,34 @@ function Invoke-TervisUpdateIssueTypeIfOnlyReasonForReturnPopulated {
     $Results = $Tickets | 
     ForEach-Object {
         Set-FreshDeskTicket -id $_."Ticket ID" -custom_fields $_.IssueTypeMapping
+    }
+}
+
+function Invoke-TervisUpdateChannelBasedOnSourceExtended {
+    param (
+        $PathToExport
+    )
+    Set-TervisFreshDeskEnvironment
+    $Tickets = Import-Csv -Path $PathToExport |
+    Where-Object -FilterScript {
+        $_.Type -eq "Warranty Parent" -and
+        -not $_."Channel" -and
+        $_."Source Extended"
+    }
+
+    $Tickets |
+    Where-Object -Property "Source Extended" -EQ "Web" | Measure-Object
+    
+    $Results = $Tickets |
+    Where-Object -Property "Source Extended" -EQ "Web" |
+    ForEach-Object {
+        Set-FreshDeskTicket -id $_."Ticket ID" -custom_fields @{cf_channel = "Web"}
+        Start-Sleep -Seconds 1.2
+    }
+
+    $Results2 = $Tickets |
+    Where-Object -Property "Source Extended" -EQ "Warranty Return Form Internal" |
+    ForEach-Object {
+        Set-FreshDeskTicket -id $_."Ticket ID" -custom_fields @{cf_channel = "Production"}
     }
 }
