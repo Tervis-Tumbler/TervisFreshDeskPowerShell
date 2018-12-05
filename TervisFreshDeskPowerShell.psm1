@@ -146,3 +146,32 @@ function Invoke-TervisUpdateChannelBasedOnSourceExtended {
         Set-FreshDeskTicket -id $_."Ticket ID" -custom_fields @{cf_channel = "Production"}
     }
 }
+
+function Invoke-TervisFreshDeskUpdateChildTicketIDs {
+    param (
+        $CSVPath
+    )
+    $CSVData = Import-Csv -Path $CSVPath |
+    Add-Member -MemberType AliasProperty -Name "TicketID" -Value "Ticket ID" -SecondValue Int -PassThru |
+    Sort-Object -Property "TicketID"
+
+    Set-TervisFreshDeskEnvironment
+    
+    $CSVData |
+    Where-Object Channel -eq "Store" |
+    Measure-Object
+
+    $CSVData |
+    Where-Object Channel -eq "Store" |
+    Where-Object TicketID -gt 89992 |
+    % {
+        $Ticket = Get-FreshDeskTicket -ID $_.TicketID
+        if ($Ticket.associated_tickets_list) {
+            Set-FreshDeskTicket -id $_.TicketID -custom_fields @{
+                cf_childticketids = $Ticket.associated_tickets_list -join ","
+            }
+            Start-Sleep -Seconds 1.2
+        }
+        Start-Sleep -Seconds 1.2
+    }
+}
