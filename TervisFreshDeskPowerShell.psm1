@@ -162,10 +162,12 @@ function Invoke-TervisFreshDeskUpdateChildTicketIDs {
     Where-Object {-not $_.ChildTicketIDs} |
     Measure-Object
 
+    # (23280 * 1.2) / 60 / 60
+
     $CSVData |
     Where-Object Channel -eq "Store" |
     Where-Object {-not $_.ChildTicketIDs} |
-    Where-Object TicketID -gt 89992 |
+    Where-Object TicketID -gt 696098 |
     % {
         $Ticket = Get-FreshDeskTicket -ID $_.TicketID
         if ($Ticket.associated_tickets_list) {
