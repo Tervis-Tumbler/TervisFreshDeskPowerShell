@@ -206,7 +206,7 @@ function Invoke-TervisFreshDeskUpdateParentTicketID {
             -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation ""
         $ParentTicket = Get-FreshDeskTicket -ID $ParentTicketID
         foreach ($ChildTicketID in $ParentTicket.associated_tickets_list) {
-            Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount"     
+            Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
                 -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID"
             Start-Sleep -Seconds 1.2
             Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
