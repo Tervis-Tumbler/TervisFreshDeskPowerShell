@@ -209,8 +209,13 @@ function Invoke-TervisFreshDeskUpdateParentTicketID {
             Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
                 -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID"
             Start-Sleep -Seconds 1.2
-            Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
+            $ChildTicket = Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
                 cf_parentticketid = $ParentTicketID
+            }
+            [PSCustomObject]@{
+                ParentTicketID = $ChildTicket.custom_fields.cf_parentticketid
+                ChildTicketID = $ChildTicket.id
+                Description = $ChildTicket.description_text
             }
         }
         Start-Sleep -Seconds 1.2
