@@ -179,3 +179,40 @@ function Invoke-TervisFreshDeskUpdateChildTicketIDs {
         Start-Sleep -Seconds 1.2
     }
 }
+
+function Invoke-TervisFreshDeskUpdateParentTicketID {
+    param (
+        $CSVPath
+    )
+    # Export from Freshdesk with Channel filtered to "Store" and Association Type
+    # filtered to "Parent". Export the following fields:
+    # - Ticket ID
+
+    # In the future, should be automated with a scheduled, and just go by "Child"
+    # with no ParentTicketID. Doing this by parent now since it's a one-shot for 
+    # a subset of tickets.
+
+    $ParentTicketIDs = Import-Csv -Path $CSVPath | 
+        Select-Object -ExpandProperty "Ticket ID"
+
+    Set-TervisFreshDeskEnvironment
+
+    $TotalCount = $ParentTicketIDs.Count
+    $CurrentParentCount = 0
+
+    foreach ($ParentTicketID in $ParentTicketIDs) {
+        $CurrentParentCount += 1
+        Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
+            -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation ""
+        $ParentTicket = Get-FreshDeskTicket -ID $ParentTicketID
+        foreach ($ChildTicketID in $ParentTicket.associated_tickets_list) {
+            Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount"     
+                -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID"
+            Start-Sleep -Seconds 1.2
+            Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
+                cf_parentticketid = $ParentTicketID
+            }
+        }
+        Start-Sleep -Seconds 1.2
+    }
+}
