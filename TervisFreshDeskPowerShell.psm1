@@ -204,20 +204,62 @@ function Invoke-TervisFreshDeskUpdateParentTicketID {
         $CurrentParentCount += 1
         Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
             -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation ""
-        $ParentTicket = Get-FreshDeskTicket -ID $ParentTicketID
-        foreach ($ChildTicketID in $ParentTicket.associated_tickets_list) {
-            Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
-                -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID"
-            Start-Sleep -Seconds 1.2
-            $ChildTicket = Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
+        try {
+            $ParentTicket = Get-FreshDeskTicket -ID $ParentTicketID
+            foreach ($ChildTicketID in $ParentTicket.associated_tickets_list) {
+                Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
+                    -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID"
+                Start-Sleep -Seconds 1.2
+                $ChildTicket = Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
+                    cf_parentticketid = $ParentTicketID
+                }
+                [PSCustomObject]@{
+                    ParentTicketID = $ChildTicket.custom_fields.cf_parentticketid
+                    ChildTicketID = $ChildTicket.id
+                    Description = $ChildTicket.description_text
+                }
+            }
+        }
+        catch {
+            $ParentTicketID | Out-File -FilePath "C:\Log\FreshFailedTickets.log" -Append
+        }
+        Start-Sleep -Seconds 1.2
+    }
+}
+
+function Invoke-TervisFreshDeskUpdateParentTicketID_ByChildTicket {
+    param (
+        $CSVPath
+    )
+
+    $ChildTicketIDs = Import-Csv -Path $CSVPath | 
+        Select-Object -ExpandProperty "Ticket ID"
+
+    Set-TervisFreshDeskEnvironment
+
+    $TotalCount = $ChildTicketIDs.Count
+    $CurrentChildCount = 0
+
+    foreach ($ChildTicketID in $ChildTicketIDs) {
+        $CurrentChildCount += 1
+        Write-Progress -Activity "Child Ticket $ChildTicketID" -Status "$CurrentChildCount of $TotalCount" `
+            -PercentComplete ($CurrentChildCount * 100 / $TotalCount) -CurrentOperation ""
+        try {
+            $ChildTicket = Get-FreshDeskTicket -ID $ChildTicketID
+            $ParentTicketID = "$($ChildTicket.associated_tickets_list[0])"
+            Start-Sleep -Seconds 1.3
+            $NewChildTicket = Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
                 cf_parentticketid = $ParentTicketID
             }
             [PSCustomObject]@{
-                ParentTicketID = $ChildTicket.custom_fields.cf_parentticketid
-                ChildTicketID = $ChildTicket.id
-                Description = $ChildTicket.description_text
+                ParentTicketID = $NewChildTicket.custom_fields.cf_parentticketid
+                ChildTicketID = $NewChildTicket.id
+                Description = $NewChildTicket.description_text
             }
         }
-        Start-Sleep -Seconds 1.2
+        catch {
+            $ChildTicketID | Out-File -FilePath "C:\Log\FreshFailedTickets.log" -Append
+        }
+        Start-Sleep -Seconds 1.3
     }
 }
