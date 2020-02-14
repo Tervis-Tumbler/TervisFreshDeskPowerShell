@@ -182,8 +182,15 @@ function Invoke-TervisFreshDeskUpdateChildTicketIDs {
 
 function Invoke-TervisFreshDeskUpdateParentTicketID {
     param (
-        $CSVPath
+        $CSVPath,
+        $LogDirectory,
+        $APICallsPerHour = 2000
     )
+
+    $APICallDelay = 3600/$APICallsPerHour
+    $StartTime = Get-Date
+    $LogFileName = "$(Get-Date $StartTime -Format yyyyMMdd_HHmmss)_FailedParentTickets.log"
+
     # Export from Freshdesk with Channel filtered to "Store" and Association Type
     # filtered to "Parent". Export the following fields:
     # - Ticket ID
@@ -202,14 +209,15 @@ function Invoke-TervisFreshDeskUpdateParentTicketID {
 
     foreach ($ParentTicketID in $ParentTicketIDs) {
         $CurrentParentCount += 1
+        $SecondsRemaining = Get-TervisFreshdeskTimeRemainingEstimate -StartTime $StartTime -Completed $CurrentParentCount -Total $TotalCount
         Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
-            -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation ""
+            -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "" -SecondsRemaining $SecondsRemaining
         try {
             $ParentTicket = Get-FreshDeskTicket -ID $ParentTicketID
             foreach ($ChildTicketID in $ParentTicket.associated_tickets_list) {
                 Write-Progress -Activity "Parent Ticket $ParentTicketID" -Status "$CurrentParentCount of $TotalCount" `
-                    -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID"
-                Start-Sleep -Seconds 1.2
+                    -PercentComplete ($CurrentParentCount * 100 / $TotalCount) -CurrentOperation "Updating Child Ticket $ChildTicketID" -SecondsRemaining $SecondsRemaining
+                Start-Sleep -Seconds $APICallDelay
                 $ChildTicket = Set-FreshDeskTicket -id $ChildTicketID -custom_fields @{
                     cf_parentticketid = $ParentTicketID
                 }
@@ -221,9 +229,9 @@ function Invoke-TervisFreshDeskUpdateParentTicketID {
             }
         }
         catch {
-            $ParentTicketID | Out-File -FilePath "C:\Log\FreshFailedTickets.log" -Append
+            $ParentTicketID | Out-File -FilePath "$LogDirectory\$LogFileName" -Append
         }
-        Start-Sleep -Seconds 1.2
+        Start-Sleep -Seconds $APICallDelay
     }
 }
 
@@ -258,8 +266,20 @@ function Invoke-TervisFreshDeskUpdateParentTicketID_ByChildTicket {
             }
         }
         catch {
-            $ChildTicketID | Out-File -FilePath "C:\Log\FreshFailedTickets.log" -Append
+            $ChildTicketID | Out-File -FilePath "$LogDirectory\FreshFailedTickets.log" -Append
         }
         Start-Sleep -Seconds 1.3
     }
+}
+
+function Get-TervisFreshdeskTimeRemainingEstimate {
+    param (
+        $StartTime,
+        $Completed,
+        $Total
+    )
+    $SecondsPassed = New-TimeSpan -Start $StartTime -End (Get-Date) | Select-Object -ExpandProperty TotalSeconds
+    $AverageSecondsPerTicket = $SecondsPassed / $Completed
+    $SecondsRemaining = ( $Total - $Completed ) * $AverageSecondsPerTicket
+    return $SecondsRemaining
 }
