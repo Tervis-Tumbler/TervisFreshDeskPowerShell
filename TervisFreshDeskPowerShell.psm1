@@ -263,3 +263,81 @@ function Invoke-TervisFreshDeskUpdateParentTicketID_ByChildTicket {
         Start-Sleep -Seconds 1.3
     }
 }
+
+function Get-TervisFreshDeskMFLTickets {
+    Invoke-FreshDeskAPI -Resource tickets -Method GET -Query 'tag:StoreMFL' | Select-Object -ExpandProperty results
+}
+
+function Remove-TervisFreshDeskTickeLFLImportTag {
+    param (
+        [Parameter(Mandatory,ValueFromPipeline)]$Ticket
+    )
+    process {
+        [array]$Tags = $Ticket.tags | Where-Object {$_ -ne "StoreMFL"}
+        Set-FreshDeskTicket -id $Ticket.id -tags $Tags
+    }
+}
+
+function New-TervisFreshDeskInventoryAdjustmentQuery {
+    param (
+        [Parameter(ValueFromPipeline)]$Ticket
+    )
+    begin {
+        $Locations = Get-TervisShopifyLocationDefinition -All
+    }
+    process {
+        $ReturnType = $Ticket.custom_fields.cf_returntype
+        if ($ReturnType -ne "Like For Like" -or $ReturnType -ne "Exchange For Clear") { return }
+        
+        $ExchangeItems = $Ticket.custom_fields.cf_exchangeitems | ConvertFrom-Json
+        
+        $ItemNumbers = $ExchangeItems | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
+        $Items = foreach ($ItemNumber in $ItemNumbers) {
+            $Quantity = $ExchangeItems | Select-Object -ExpandProperty $ItemNumber
+            [PSCustomObject]@{
+                ItemNumber = $ItemNumber
+                Quantity = $Quantity * -1
+            }
+        }
+
+        $ParentTicket = Get-FreshDeskTicket -ID $Ticket.custom_fields.cf_parentticketid
+        $Location = $Locations | Where-Object FreshDeskLocation -eq $ParentTicket.custom_fields.cf_subchannel
+
+        $Query = ""
+        foreach ($Item in $Items) {
+            $Query += @"
+            INSERT INTO xxtrvs.xxmtl_transactions_interface (
+                SOURCE_CODE
+                ,LAST_UPDATE_DATE
+                ,CREATION_DATE
+                ,ITEM_SEGMENT1
+                ,TRANSACTION_QUANTITY
+                ,TRANSACTION_UOM
+                ,TRANSACTION_DATE
+                ,SUBINVENTORY_CODE
+                ,TRANSFER_LOCATOR_NAME
+                ,PROCESS_FLAG
+                ,CREATED_BY_NAME
+                ,LAST_UPDATED_BY_NAME
+                ,ORGANIZATION_CODE
+            )
+            VALUES (
+                'INVENTORY_ADJUSTMENT_MFL'
+                ,TRUNC(SYSDATE)
+                ,TRUNC(SYSDATE)
+                ,'$($Item.ItemNumber)'
+                ,$($Item.Quantity)
+                ,'EA'
+                ,TRUNC(TO_DATE('$($Ticket.created_at.Substring(0,10))', 'YYYY-MM-DD'))
+                ,'$($Location.Subinventory)'
+                ,'$($Location.CustomerNumber)'
+                ,'N'
+                ,'FreshdeskMFL'
+                ,'FreshdeskMFL'
+                ,'STO'
+            )
+
+"@
+        }
+    }
+}
