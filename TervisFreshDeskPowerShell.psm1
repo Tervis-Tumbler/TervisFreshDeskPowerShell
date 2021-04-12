@@ -328,7 +328,7 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
                 ,'$($Item.ItemNumber)'
                 ,$($Item.Quantity)
                 ,'EA'
-                ,TRUNC(TO_DATE('$($Ticket.created_at.Substring(0,10))', 'YYYY-MM-DD'))
+                ,TO_DATE('$($Ticket.created_at.Substring(0,10))', 'YYYY-MM-DD')
                 ,'$($Location.Subinventory)'
                 ,'$($Location.CustomerNumber)'
                 ,'N'
