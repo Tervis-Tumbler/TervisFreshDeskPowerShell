@@ -292,9 +292,10 @@ function Install-TervisFreshdeskMFL {
                 "TervisMicrosoft.PowerShell.Security",
                 "PasswordstatePowershell",
                 "TervisPasswordstatePowershell",
-                "TervisFreshDeskPowerShell",
+                "TervisPowershellJobs",
                 "ShopifyPowerShell",
-                "TervisPowershellJobs"
+                "FreshDeskPowerShell",
+                "TervisFreshDeskPowerShell"
             PowerShellGalleryDependencies = ""
             ScheduledTaskName = "FreshDesk MFL Ticket Import - $EnvironmentName"
             RepetitionIntervalName = "EveryDayAt730am"
