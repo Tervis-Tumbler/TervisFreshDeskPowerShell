@@ -60,7 +60,7 @@ function Invoke-TervisUpdateQuantityToQuantityNumber {
     Where-Object {
         ($_.QuantityNumber -and $_.Quantity) -and
         ($_.QuantityNumber -ne $_.Quantity)
-    } | FT
+    } | Format-Table
 
 
     if ($ticket.QuantityNumber -and $ticket.Quantity) {
@@ -108,7 +108,7 @@ function Invoke-TervisUpdateIssueTypeIfOnlyReasonForReturnPopulated {
         $ReturnReasonIssueTypeMapping[$this."Reason for Return"]
     }
 
-    $Tickets | Select-Object -Property Type, "Issue Type", "Reason for Return", IssueTypeMapping | FT
+    $Tickets | Select-Object -Property Type, "Issue Type", "Reason for Return", IssueTypeMapping | Format-Table
     $Tickets | Where-object {$_."Reason for Return" -in $ReturnReasonIssueTypeMapping.Keys} | Measure-Object
     $Tickets | Measure-Object
     
@@ -168,7 +168,7 @@ function Invoke-TervisFreshDeskUpdateChildTicketIDs {
     Where-Object Channel -eq "Store" |
     Where-Object {-not $_.ChildTicketIDs} |
     Where-Object TicketID -gt 696098 |
-    % {
+    ForEach-Object {
         $Ticket = Get-FreshDeskTicket -ID $_.TicketID
         if ($Ticket.associated_tickets_list) {
             Set-FreshDeskTicket -id $_.TicketID -custom_fields @{
@@ -272,16 +272,62 @@ function Invoke-TervisFreshDeskUpdateParentTicketID_ByChildTicket {
     }
 }
 
+function Install-TervisFreshdeskMFL {
+    param (
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]$ComputerName,
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]
+        [ValidateSet("Delta","Epsilon","Production")]$EnvironmentName
+    )
+    begin {
+        $ScheduledTasksCredential = Get-TervisPasswordstatePassword -Guid "eed2bd81-fd47-4342-bd59-b396da75c7ed" -AsCredential
+    }
+    process {
+        $PowerShellApplicationParameters = @{
+            ComputerName = $ComputerName
+            EnvironmentName = $EnvironmentName
+            ModuleName = "TervisFreshDeskPowerShell"
+            TervisModuleDependencies = `
+                "WebServicesPowerShellProxyBuilder",
+                "TervisMicrosoft.PowerShell.Utility",
+                "TervisMicrosoft.PowerShell.Security",
+                "PasswordstatePowershell",
+                "TervisPasswordstatePowershell",
+                "TervisFreshDeskPowerShell",
+                "ShopifyPowerShell",
+                "TervisPowershellJobs"
+            PowerShellGalleryDependencies = ""
+            ScheduledTaskName = "FreshDesk MFL Ticket Import - $EnvironmentName"
+            RepetitionIntervalName = "EveryDayAt730am"
+            CommandString = "Invoke-TervisFreshDeskMFLTransactionImport -Environment $EnvironmentName"
+            ScheduledTasksCredential = $ScheduledTasksCredential
+        }
+        
+        Install-PowerShellApplication @PowerShellApplicationParameters
+    }
+}
+
+function Invoke-TervisFreshDeskMFLTransactionImport {
+    param (
+        [ValidateSet("Delta","Epsilon","Production")]$Environment
+    )
+    Set-TervisFreshDeskEnvironment
+    Set-TervisEBSEnvironment -Name $Environment
+    Get-TervisFreshDeskMFLTickets |
+    New-TervisFreshDeskInventoryAdjustmentQuery |
+    Invoke-TervisFreshDeskMFLTransactionQueries
+}
+
 function Get-TervisFreshDeskMFLTickets {
     Invoke-FreshDeskAPI -Resource tickets -Method GET -Query 'tag:StoreMFL' | Select-Object -ExpandProperty results
 }
 
-function Remove-TervisFreshDeskTickeLFLImportTag {
+function Remove-TervisFreshDeskTicketMFLImportTag {
     param (
         [Parameter(Mandatory,ValueFromPipeline)]$Ticket
     )
     process {
         [array]$Tags = $Ticket.tags | Where-Object {$_ -ne "StoreMFL"}
+        if (-not $Tags) { $Tags = @() }
         Set-FreshDeskTicket -id $Ticket.id -tags $Tags
     }
 }
@@ -292,27 +338,22 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
     )
     begin {
         $Locations = Get-TervisShopifyLocationDefinition -All
+        $ParentTicketCache = ""
     }
     process {
         $ReturnType = $Ticket.custom_fields.cf_returntype
-        if ($ReturnType -ne "Like For Like" -or $ReturnType -ne "Exchange For Clear") { return }
+        if ($ReturnType -ne "Like For Like" -and $ReturnType -ne "Exchange For Clear") { return }
         
         $ExchangeItems = $Ticket.custom_fields.cf_exchangeitems | ConvertFrom-Json
         
-        $ItemNumbers = $ExchangeItems | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
-        $Items = foreach ($ItemNumber in $ItemNumbers) {
-            $Quantity = $ExchangeItems | Select-Object -ExpandProperty $ItemNumber
-            [PSCustomObject]@{
-                ItemNumber = $ItemNumber
-                Quantity = $Quantity * -1
-            }
+        $ParentTicketID = $Ticket.custom_fields.cf_parentticketid
+        if ($ParentTicketID -ne $ParentTicketCache.id) {
+            $ParentTicketCache = Get-FreshDeskTicket -ID $ParentTicketID
         }
-
-        $ParentTicket = Get-FreshDeskTicket -ID $Ticket.custom_fields.cf_parentticketid
-        $Location = $Locations | Where-Object FreshDeskLocation -eq $ParentTicket.custom_fields.cf_subchannel
-
+        $Location = $Locations | Where-Object FreshDeskLocation -eq $ParentTicketCache.custom_fields.cf_subchannel
+        
         $Query = ""
-        foreach ($Item in $Items) {
+        foreach ($Item in $ExchangeItems) {
             $Query += @"
             INSERT INTO xxtrvs.xxmtl_transactions_interface (
                 SOURCE_CODE
@@ -328,13 +369,14 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
                 ,CREATED_BY_NAME
                 ,LAST_UPDATED_BY_NAME
                 ,ORGANIZATION_CODE
+                ,FRESHDESK_ID
             )
             VALUES (
                 'INVENTORY_ADJUSTMENT_MFL'
                 ,TRUNC(SYSDATE)
                 ,TRUNC(SYSDATE)
                 ,'$($Item.ItemNumber)'
-                ,$($Item.Quantity)
+                ,$($Item.Quantity * -1)
                 ,'EA'
                 ,TO_DATE('$($Ticket.created_at.Substring(0,10))', 'YYYY-MM-DD')
                 ,'$($Location.Subinventory)'
@@ -343,9 +385,34 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
                 ,'FreshdeskMFL'
                 ,'FreshdeskMFL'
                 ,'STO'
+                ,'$($Ticket.id)'
             )
 
-"@
+"@          
+            }
+        
+            return [PSCustomObject]@{
+                Ticket = $Ticket
+                Query = $Query
+        }
+    }
+}
+
+function Invoke-TervisFreshDeskMFLTransactionQueries {
+    param (
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]$Ticket,
+        [Parameter(Mandatory,ValueFromPipelineByPropertyName)]$Query
+    )
+    process {
+        try {
+            $ExistingRecord = Invoke-EBSSQL -SQLCommand `
+                "SELECT freshdesk_id FROM xxtrvs.xxmtl_transactions_interface WHERE freshdesk_id = $($Ticket.id)"
+            if (-not $ExistingRecord) {
+                Invoke-EBSSQL -SQLCommand $Query
+            }
+            Remove-TervisFreshDeskTicketMFLImportTag -Ticket $Ticket
+        } catch {
+            Write-Warning "Could not process $TicketID`: `n$_`n$($_.InvocationInfo.PositionMessage)"
         }
     }
 }
