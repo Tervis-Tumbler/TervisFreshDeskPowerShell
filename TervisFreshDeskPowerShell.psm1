@@ -287,6 +287,9 @@ function Install-TervisFreshdeskMFL {
             EnvironmentName = $EnvironmentName
             ModuleName = "TervisFreshDeskPowerShell"
             TervisModuleDependencies = `
+                "OracleE-BusinessSuitePowerShell",
+                "TervisOracleE-BusinessSuitePowerShell",
+                "InvokeSQL",
                 "WebServicesPowerShellProxyBuilder",
                 "TervisMicrosoft.PowerShell.Utility",
                 "TervisMicrosoft.PowerShell.Security",
@@ -294,9 +297,10 @@ function Install-TervisFreshdeskMFL {
                 "TervisPasswordstatePowershell",
                 "TervisPowershellJobs",
                 "ShopifyPowerShell",
+                "TervisShopify",
                 "FreshDeskPowerShell",
                 "TervisFreshDeskPowerShell"
-            PowerShellGalleryDependencies = ""
+            NugetDependencies = "Oracle.ManagedDataAccess.Core"
             ScheduledTaskName = "FreshDesk MFL Ticket Import - $EnvironmentName"
             RepetitionIntervalName = "EveryDayAt730am"
             CommandString = "Invoke-TervisFreshDeskMFLTransactionImport -Environment $EnvironmentName"
