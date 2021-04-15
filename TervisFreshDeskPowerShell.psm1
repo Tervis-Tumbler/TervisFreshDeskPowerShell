@@ -316,7 +316,7 @@ function Invoke-TervisFreshDeskMFLTransactionImport {
         [ValidateSet("Delta","Epsilon","Production")]$Environment
     )
     Set-TervisFreshDeskEnvironment
-    Set-TervisEBSEnvironment -Name $Environment | Out-Null
+    Set-TervisEBSEnvironment -Name $Environment -ErrorAction SilentlyContinue
     Get-TervisFreshDeskMFLTickets |
     New-TervisFreshDeskInventoryAdjustmentQuery |
     Invoke-TervisFreshDeskMFLTransactionQueries
