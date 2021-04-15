@@ -316,7 +316,7 @@ function Invoke-TervisFreshDeskMFLTransactionImport {
         [ValidateSet("Delta","Epsilon","Production")]$Environment
     )
     Set-TervisFreshDeskEnvironment
-    Set-TervisEBSEnvironment -Name $Environment
+    Set-TervisEBSEnvironment -Name $Environment | Out-Null
     Get-TervisFreshDeskMFLTickets |
     New-TervisFreshDeskInventoryAdjustmentQuery |
     Invoke-TervisFreshDeskMFLTransactionQueries
@@ -357,10 +357,10 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
         }
         $Location = $Locations | Where-Object FreshDeskLocation -eq $ParentTicketCache.custom_fields.cf_subchannel
         
-        $Query = ""
+        $Query = "INSERT ALL`n"
         foreach ($Item in $ExchangeItems) {
             $Query += @"
-            INSERT INTO xxtrvs.xxmtl_transactions_interface (
+            INTO xxtrvs.xxmtl_transactions_interface (
                 SOURCE_CODE
                 ,LAST_UPDATE_DATE
                 ,CREATION_DATE
@@ -391,14 +391,13 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
                 ,'FreshdeskMFL'
                 ,'STO'
                 ,'$($Ticket.id)'
-            )
-
+            )`n`n
 "@          
-            }
-        
-            return [PSCustomObject]@{
-                Ticket = $Ticket
-                Query = $Query
+        }
+        $Query += "SELECT 1 FROM DUAL"
+        return [PSCustomObject]@{
+            Ticket = $Ticket
+            Query = $Query
         }
     }
 }
