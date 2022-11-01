@@ -302,7 +302,7 @@ function Install-TervisFreshdeskMFL {
                 "TervisFreshDeskPowerShell"
             NugetDependencies = "Oracle.ManagedDataAccess.Core"
             ScheduledTaskName = "FreshDesk MFL Ticket Import - $EnvironmentName"
-            RepetitionIntervalName = "EveryDayAt730am"
+            RepetitionIntervalName = "EveryDayEvery15Minutes"
             CommandString = "Invoke-TervisFreshDeskMFLTransactionImport -Environment $EnvironmentName"
             ScheduledTasksCredential = $ScheduledTasksCredential
         }
@@ -333,6 +333,7 @@ function Remove-TervisFreshDeskTicketMFLImportTag {
     process {
         [array]$Tags = $Ticket.tags | Where-Object {$_ -ne "StoreMFL"}
         if (-not $Tags) { $Tags = @() }
+        if (-not $Tags.Contains("StoreMFL_Processed")) { $Tags += "StoreMFL_Processed" }
         Set-FreshDeskTicket -id $Ticket.id -tags $Tags
     }
 }
@@ -362,8 +363,6 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
             $Query += @"
             INTO xxtrvs.xxmtl_transactions_interface (
                 SOURCE_CODE
-                ,LAST_UPDATE_DATE
-                ,CREATION_DATE
                 ,ITEM_SEGMENT1
                 ,TRANSACTION_QUANTITY
                 ,TRANSACTION_UOM
@@ -378,8 +377,6 @@ function New-TervisFreshDeskInventoryAdjustmentQuery {
             )
             VALUES (
                 'INVENTORY_ADJUSTMENT_MFL'
-                ,TRUNC(SYSDATE)
-                ,TRUNC(SYSDATE)
                 ,'$($Item.ItemNumber)'
                 ,$($Item.Quantity * -1)
                 ,'EA'
